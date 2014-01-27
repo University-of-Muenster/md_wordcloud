@@ -4,13 +4,18 @@
  */
 function md_wordcloud_block_info() {
   $blocks = array();
-
+  
   $taxonomy_vocabularies = taxonomy_get_vocabularies();
   if (is_array($taxonomy_vocabularies) && !empty($taxonomy_vocabularies)) {
     foreach ($taxonomy_vocabularies as $voc) {
       $blocks[$voc->vid]['info'] = 'Word Cloud in ' . $voc->name;
       $blocks[$voc->vid]['cache'] = DRUPAL_NO_CACHE;
     }
+	###CUSTOMIZATION START###
+	//Add new Block (selvoc = selected vocabularies) for selected vocabularies.
+	$blocks['selvoc']['info'] = 'Word Cloud selected vocabularies';
+    $blocks['selvoc']['cache'] = DRUPAL_NO_CACHE;
+	###CUSTOMIZATION END###
   }
 
   return $blocks;
@@ -34,8 +39,19 @@ function md_wordcloud_block_view($delta = '') {
   $angle_to = $block_data['angle_to'];
   $angle_count = $block_data['angle_count'];
   $words_scale = $block_data['words_scale'];
-  $result = get_terms(array($delta), $number_words);
-
+  
+  ###CUSTOMIZATION START###
+  if($delta == 'selvoc'){
+	$vids = $block_data['vids'];
+	$result = get_terms($vids, $number_words);
+  }
+  else{
+	$result = get_terms(array($delta), $number_words);
+  }
+  
+  $term_blacklist = $block_data['term_blacklist'];
+  $result = md_wordcloud_apply_term_blacklist($result, $term_blacklist);
+  ###CUSTOMIZATION END###
   global $base_url;
 
   drupal_add_js(drupal_get_path('module', 'md_wordcloud') . '/js/md_wordcloud.js');
@@ -46,6 +62,12 @@ function md_wordcloud_block_view($delta = '') {
     $blocks['subject'] = variable_get('md_wordcloud_block_title_' . $delta, t('Tags in @voc', array('@voc' => $voc->name)));
     $blocks['content'] = '<div id="terms-cloud-' . $delta . '" class="cloud-block"><svg></svg><div><a href="' . $base_url . '/md-taxonomy/page/' . $voc->vid . '">More</a></div></div>';
   }
+  ###CUSTOMIZATION START###
+  else if($voc = $delta){
+	$blocks['subject'] = variable_get('md_wordcloud_block_title_' . $delta, t('Tags in @voc', array('@voc' => $delta)));
+    $blocks['content'] = '<div id="terms-cloud-' . $delta . '" class="cloud-block"><svg></svg><div><a href="' . $base_url . '/md-taxonomy/page/' . $delta . '">More</a></div></div>';
+  }
+  ###CUSTOMIZATION END###
   return $blocks;
 }
 
@@ -63,8 +85,25 @@ function md_wordcloud_block_configure($delta = '') {
       'angle_count' => 5,
       'words_scale' => 'linear',
   );
-
-  $result = get_terms(array($delta));
+  
+  ###CUSTOMIZATION START###
+  //Add arrays for vids and a blacklist to the default_configuration if it is the selvoc block.
+  $default_configure['term_blacklist'] = array();
+  if($delta == 'selvoc'){
+	$taxonomy_vocabularies = taxonomy_get_vocabularies();
+	$vids = array();
+	if (is_array($taxonomy_vocabularies) && !empty($taxonomy_vocabularies)) {
+		foreach ($taxonomy_vocabularies as $voc) {
+		  $vids[] = $voc->vid;
+		}
+	}
+	$default_configure['vids'] = $vids;
+  }
+  else{
+	$result = get_terms(array($delta));
+  }
+  ###CUSTOMIZATION END###
+  
   $blocks_configure = variable_get('md_wordcloud_blocks_configure');
   if ($blocks_configure == NULL || !array_key_exists('block_' . $delta, $blocks_configure)) {
     $block_data = $default_configure;
@@ -72,7 +111,15 @@ function md_wordcloud_block_configure($delta = '') {
   else {
     $block_data = $blocks_configure['block_' . $delta];
   }
-
+  
+  ###CUSTOMIZATION START###
+  if($delta == 'selvoc'){
+	$result = get_terms($block_data['vids']);
+  }
+  $term_blacklist = $block_data['term_blacklist'];
+  $result = md_wordcloud_apply_term_blacklist($result, $term_blacklist);
+  ###CUSTOMIZATION END###
+  
   drupal_add_css(drupal_get_path('module', 'md_wordcloud') . '/css/md_wordcloud_preview.css');
   drupal_add_js(drupal_get_path('module', 'md_wordcloud') . '/js/md_wordcloud_preview.js');
   drupal_add_js(array('words' => $result->words, 'counts' => $result->counts), 'setting');
@@ -143,6 +190,22 @@ function md_wordcloud_block_configure($delta = '') {
   $form['angle'] = array(
       '#markup' => '<div id="angles"></div>',
   );
+  
+  ###CUSTOMIZATION START###
+  if($delta == 'selvoc'){
+	$form['vids'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Vocabulary IDs. Separate with \',\''),
+		'#default_value' => implode(',', $block_data['vids']),
+	);
+  }
+  
+  $form['term_blacklist'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Blacklisted Taxonomy Terms. Separate with \',\''),
+      '#default_value' => implode(',', $block_data['term_blacklist']),
+  );
+  ###CUSTOMIZATION END###
 
   return $form;
 }
@@ -161,7 +224,38 @@ function md_wordcloud_block_save($delta = '', $edit = array()) {
   $block['angle_to'] = is_numeric($edit['angle_to']) ? $edit['angle_to'] : 90;
   $block['angle_count'] = is_numeric($edit['angle_count']) ? $edit['angle_count'] : 5;
   $block['words_scale'] = $edit['words_scale'];
-
+  
+  ###CUSTOMIZATION START###
+  if($delta == 'selvoc'){
+	$vids = explode(',', $edit['vids']);
+	$numeric = true;
+	for($i = 0; $i<count($vids); $i++){
+		$vids[$i] = trim($vids[$i]);
+		if(!is_numeric($vids[$i])){
+			$numeric = false;
+		}
+	}
+	if($numeric){
+		$block['vids'] = $vids;
+	}
+	else{
+		$block['vids'] = $blocks_configure['block_' . $delta]['vids'];
+	}
+  }
+  
+  $term_blacklist_string = trim($edit['term_blacklist']);
+  if($term_blacklist_string === ''){
+	$block['term_blacklist'] = array();
+  }
+  else{
+	  $term_blacklist = explode(',', $term_blacklist_string);
+	  for($i = 0; $i<count($term_blacklist); $i++){
+		$term_blacklist[$i] = trim($term_blacklist[$i]);
+	  }
+	  $block['term_blacklist'] = $term_blacklist;
+  }
+  ###CUSTOMIZATION END###
+  
   $blocks_configure['block_' . $delta] = $block;
   variable_set('md_wordcloud_blocks_configure', $blocks_configure);
 }
@@ -190,13 +284,28 @@ function md_wordcloud_menu() {
  */
 function md_wordcloud_page_list($vocs_id) {
   if (is_array($vocs_id)) {
-    $results = get_terms($vocs_id);
+  
+	###CUSTOMIZATION START###
+	if($vocs_id[0] != 'selvoc'){
+		$results = get_terms($vocs_id);
+	}
+	###CUSTOMIZATION END###
+	
     $blocks_configure = variable_get('md_wordcloud_blocks_configure');
     if ($blocks_configure == NULL || !array_key_exists('block_' . $vocs_id[0], $blocks_configure)) {
       return '<div id="page-terms"></div>';
     }
 
-    $block_data = $blocks_configure['block_' . $vocs_id[0]];
+	$block_data = $blocks_configure['block_' . $vocs_id[0]];
+	
+	###CUSTOMIZATION START###
+	if($vocs_id[0] == 'selvoc'){
+		$results = get_terms($block_data['vids']);
+	}
+	$term_blacklist = $block_data['term_blacklist'];
+	$results = md_wordcloud_apply_term_blacklist($results, $term_blacklist);
+	###CUSTOMIZATION END###
+	
     $setting = array(
         'terms_url' => $results->terms_url,
         'words' => $results->words,
@@ -206,16 +315,24 @@ function md_wordcloud_page_list($vocs_id) {
         'angle_from' => $block_data['angle_from'],
         'angle_to' => $block_data['angle_to'],
     );
-
+	
     drupal_add_js(array('page_data' => $setting), 'setting');
   }
 
   drupal_add_js(drupal_get_path('module', 'md_wordcloud') . '/js/md_wordcloud_page.js');
-  $term = taxonomy_vocabulary_load($vocs_id[0]);
-  if ($term) {
-    drupal_set_title(t('Word Cloud in ' . $term->name));
+  
+  ###CUSTOMIZATION START###
+  if($vocs_id[0] == 'selvoc'){
+	drupal_set_title(t('Word Cloud'));
   }
-
+  else{
+	$term = taxonomy_vocabulary_load($vocs_id[0]);
+	if ($term) {
+		drupal_set_title(t('Word Cloud in ' . $term->name));
+	}
+  }
+  ###CUSTOMIZATION END###
+  
   return '<div id="page-terms"></div>';
 }
 
@@ -226,6 +343,13 @@ function  md_wordcloud_vocs_load($vocs) {
   if (is_numeric($vocs)) {
     $vocs = array($vocs);
   }
+  
+  ###CUSTOMIZATION START###
+  elseif($vocs == 'selvoc'){
+	$vocs = array('selvoc');
+  }
+  ###CUSTOMIZATION END###
+  
   elseif (preg_match('/^([0-9]+,){1,5}[0-9]+$/', $vocs)) {
     $vocs = explode(',', $vocs);
   }
@@ -267,3 +391,28 @@ function get_terms($vids, $size = NULL) {
     return $result;
   }
 }
+###CUSTOMIZATION START###
+function md_wordcloud_apply_term_blacklist($result, $term_blacklist){
+  if(count($term_blacklist)>0){
+	$words_new = array();
+	$terms_url_new = array();
+	$counts_new = array();
+	
+	$words_old = $result->words;
+	$terms_url_old = $result->terms_url;
+	$counts_old = $result->counts;
+	
+	for($i = 0; $i<count($words_old); $i++){
+		if(!in_array($words_old[$i], $term_blacklist)){
+			$words_new[] = $words_old[$i];
+			$terms_url_new[$words_old[$i]] = $terms_url_old[$words_old[$i]];
+			$counts_new[] = $counts_old[$i];
+		}
+	}
+	
+	$result_new = (object) array('terms_url' => $terms_url_new, 'words' => $words_new, 'counts' => $counts_new);
+	return $result_new;
+  }
+  return $result;
+}
+ ###CUSTOMIZATION END###
