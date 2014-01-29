@@ -17,12 +17,20 @@ Drupal.behaviors.md_wordcloud = {
 			angle_to = +data.angle_to,
 			angle_count = +data.angle_count,
 			words_scale = data.words_scale;
+			//CUSTOMIZATION START
+			//Get values for font size from Drupal
+			var fontsize_min = data.fontsize_min;
+			var fontsize_max = data.fontsize_max
+			//CUSTOMIZATION END
 			
 			// Add block_id to last words
 			words[words.length] = block_id;
 			counts[counts.length] = 1;
 		
-			var fontSize = d3.scale[words_scale]().range([10, 80]);
+			//CUSTOMIZATION START
+			//Set font size
+			var fontSize = d3.scale[words_scale]().range([fontsize_min, fontsize_max]);
+			//CUSTOMIZATION END
 			if (counts.length) {
 				fontSize.domain([+counts[counts.length - 1]|| 1, +counts[0]]);
 			}

@@ -14,8 +14,15 @@
 			angle_to = +page_data.angle_to,
 			angle_count = +page_data.angle_count,
 			words_scale = page_data.words_scale;
-		
-			var fontSize = d3.scale[words_scale]().range([10, 80]);
+			
+			//CUSTOMIZATION START
+			//Get values for font size from Drupal
+			var fontsize_min = page_data.fontsize_min;
+			var fontsize_max = page_data.fontsize_max;
+			
+			//Set font size
+			var fontSize = d3.scale[words_scale]().range([fontsize_min, fontsize_max]);
+			//CUSTOMIZATION END
 			if (counts.length) {
 				fontSize.domain([+counts[counts.length - 1]|| 1, +counts[0]]);
 			}

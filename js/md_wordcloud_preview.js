@@ -4,7 +4,13 @@ Drupal.behaviors.md_wordcloud_preview = {
 		var words = Drupal.settings.words;
 		var counts = Drupal.settings.counts;
 		var width = +d3.select("#edit-width").property("value"),
-		height = +d3.select("#edit-height").property("value");		
+		height = +d3.select("#edit-height").property("value");	
+		
+		//CUSTOMIZATION START
+		//Get font size values from form
+		var fontsize_min = +d3.select("#edit-fontsize-block-min").property("value");
+		var fontsize_max = +d3.select("#edit-fontsize-block-max").property("value");
+		//CUSTOMIZATION END
 		var fill = d3.scale.category20();
 		var fontSize;
 		var angle_from = -90, 
@@ -49,10 +55,13 @@ Drupal.behaviors.md_wordcloud_preview = {
 	        	.outerRadius(r);
 		
 		getAngles();
-		
-		$('#edit-angle-count, #edit-angle-from, #edit-angle-to, #edit-width, #edit-height, #edit-max-words').focusout(function() {
+		//CUSTOMIZATION START
+		//Add #edit-fontsize-block-min and #edit-fontsize-block-max to the list.
+		//Necessary to update the preview after a value was changed.
+		$('#edit-angle-count, #edit-angle-from, #edit-angle-to, #edit-width, #edit-height, #edit-max-words, #edit-fontsize-block-min, #edit-fontsize-block-max').focusout(function() {
 			getAngles();
 		});
+		//CUSTOMIZATION END
 		d3.select('#block-admin-configure').selectAll("input[type=radio]").on('change', generate);
 		
 		function getAngles() {
@@ -61,6 +70,13 @@ Drupal.behaviors.md_wordcloud_preview = {
 			angle_to = Math.max(-90, Math.min(90, +d3.select("#edit-angle-to").property("value"))); 
 			width = +d3.select("#edit-width").property("value");
 			height = +d3.select("#edit-height").property("value");
+			
+			//CUSTOMIZATION START
+			//Get font size values from form
+			fontsize_min = +d3.select("#edit-fontsize-block-min").property("value");
+			fontsize_max = +d3.select("#edit-fontsize-block-max").property("value");
+			//CUSTOMIZATION END
+			
 			if (isNaN(width) || isNaN(height) || isNaN(angle_count) || isNaN(angle_from) || isNaN(angle_to)) {
 				d3.select("#edit-angle-count").property("value", angle_count);
 				d3.select("#edit-angle-from").property("value", angle_from);
@@ -146,8 +162,10 @@ Drupal.behaviors.md_wordcloud_preview = {
 			$('#preview-md-taxonomy').empty()
 									 .width(width)
 									 .height(height);
-			
-			fontSize = d3.scale[d3.select("input[name=words_scale]:checked").property("value")]().range([10, 80]);
+			//CUSTOMIZATION START
+			//Set font size
+			fontSize = d3.scale[d3.select("input[name=words_scale]:checked").property("value")]().range([fontsize_min, fontsize_max]);
+			//CUSTOMIZATION END
 			if (counts.length) fontSize.domain([+counts[counts.length - 1]|| 1, +counts[0]]);
 			terms = words.slice(0, max = Math.min(words.length, +d3.select("#edit-max-words").property("value")));
 			terms_counts = counts.slice(0, max = Math.min(counts.length, +d3.select("#edit-max-words").property("value")));

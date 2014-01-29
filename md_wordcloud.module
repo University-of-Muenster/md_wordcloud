@@ -41,6 +41,10 @@ function md_wordcloud_block_view($delta = '') {
   $words_scale = $block_data['words_scale'];
   
   ###CUSTOMIZATION START###
+  //get configuration of the front size
+  $fontsize_min = $block_data['fontsize_block_min'];
+  $fontsize_max = $block_data['fontsize_block_max'];
+
   //Use vids from configuration instead of vid from delta, if it is the selvoc block.
   if($delta == 'selvoc'){
 	$vids = $block_data['vids'];
@@ -57,8 +61,10 @@ function md_wordcloud_block_view($delta = '') {
   global $base_url;
 
   drupal_add_js(drupal_get_path('module', 'md_wordcloud') . '/js/md_wordcloud.js');
-  drupal_add_js(array('blocks_data' => array(array('block_id' => $delta, 'width' => $width, 'height' => $height, 'angle_from' => $angle_from, 'angle_to' => $angle_to, 'angle_count' => $angle_count, 'words_scale' => $words_scale, 'terms_url' => $result->terms_url, 'words' => $result->words, 'counts' => $result->counts))), 'setting');
-
+  ###CUSTOMIZATION START###
+  //Add 'fontsize_min' => $fontsize_min, 'fontsize_max' => $fontsize_max to the array
+  drupal_add_js(array('blocks_data' => array(array('block_id' => $delta, 'width' => $width, 'height' => $height, 'angle_from' => $angle_from, 'angle_to' => $angle_to, 'angle_count' => $angle_count, 'words_scale' => $words_scale, 'terms_url' => $result->terms_url, 'words' => $result->words, 'counts' => $result->counts, 'fontsize_min' => $fontsize_min, 'fontsize_max' => $fontsize_max))), 'setting');
+  ###CUSTOMIZATION END###
   $blocks = array();
   if ($voc = taxonomy_vocabulary_load($delta)) {
     $blocks['subject'] = variable_get('md_wordcloud_block_title_' . $delta, t('Tags in @voc', array('@voc' => $voc->name)));
@@ -87,9 +93,15 @@ function md_wordcloud_block_configure($delta = '') {
       'angle_to' => 90,
       'angle_count' => 5,
       'words_scale' => 'linear',
+	  
   );
   
   ###CUSTOMIZATION START###
+  //set default font sizes.
+  $default_configure['fontsize_block_min'] = 10;
+  $default_configure['fontsize_block_max'] = 80;
+  $default_configure['fontsize_page_min'] = 10;
+  $default_configure['fontsize_page_max'] = 80;
   //Add arrays for vids and a blacklist to the default_configuration if it is the selvoc block.
   $default_configure['term_blacklist'] = array();
   if($delta == 'selvoc'){
@@ -212,6 +224,34 @@ function md_wordcloud_block_configure($delta = '') {
       '#title' => t('Blacklisted Taxonomy Terms. Separate with \',\''),
       '#default_value' => implode(',', $block_data['term_blacklist']),
   );
+  //Add forms for font sizes.
+  $form['fontsize_block_min'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Min'),
+	  '#prefix' => '<p>' .t('Set Block font size:') .'</p><div class="md-fontsize-block">',
+      '#default_value' => $block_data['fontsize_block_min'],
+  );
+  
+  $form['fontsize_block_max'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Max'),
+	  '#suffix' => '</div><!-- /.md-fontsize-block -->',
+      '#default_value' => $block_data['fontsize_block_max'],
+  );
+  
+  $form['fontsize_page_min'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Min'),
+	  '#prefix' => '<p>' .t('Set Page font size:') .'</p><div class="md-fontsize-page">',
+      '#default_value' => $block_data['fontsize_page_min'],
+  );
+  
+  $form['fontsize_page_max'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Max'),
+	  '#suffix' => '</div><!-- /.md-fontsize-page -->',
+      '#default_value' => $block_data['fontsize_page_max'],
+  );
   ###CUSTOMIZATION END###
 
   return $form;
@@ -233,6 +273,12 @@ function md_wordcloud_block_save($delta = '', $edit = array()) {
   $block['words_scale'] = $edit['words_scale'];
   
   ###CUSTOMIZATION START###
+  //Filter inputs for font sizes.
+  $block['fontsize_block_min'] = is_numeric($edit['fontsize_block_min']) ? $edit['fontsize_block_min'] : 10;
+  $block['fontsize_block_max'] = is_numeric($edit['fontsize_block_max']) ? $edit['fontsize_block_max'] : 80;
+  
+  $block['fontsize_page_min'] = is_numeric($edit['fontsize_page_min']) ? $edit['fontsize_page_min'] : 10;
+  $block['fontsize_page_max'] = is_numeric($edit['fontsize_page_max']) ? $edit['fontsize_page_max'] : 80;
   //Filter input for vids and term_blacklist
   if($delta == 'selvoc'){
 	$vids = explode(',', $edit['vids']);
@@ -327,6 +373,9 @@ function md_wordcloud_page_list($vocs_id) {
         'angle_count' => $block_data['angle_count'],
         'angle_from' => $block_data['angle_from'],
         'angle_to' => $block_data['angle_to'],
+		###CUSTOMIZATION START###
+		'fontsize_min' => $block_data['fontsize_page_min'],
+		'fontsize_max' => $block_data['fontsize_page_max'],
     );
 	
     drupal_add_js(array('page_data' => $setting), 'setting');
