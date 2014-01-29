@@ -374,8 +374,10 @@ function md_wordcloud_page_list($vocs_id) {
         'angle_from' => $block_data['angle_from'],
         'angle_to' => $block_data['angle_to'],
 		###CUSTOMIZATION START###
+		//Add font size values to the array, which will be given to the javascript.
 		'fontsize_min' => $block_data['fontsize_page_min'],
 		'fontsize_max' => $block_data['fontsize_page_max'],
+		###CUSTOMIZATION END###
     );
 	
     drupal_add_js(array('page_data' => $setting), 'setting');
