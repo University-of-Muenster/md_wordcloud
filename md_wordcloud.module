@@ -68,13 +68,17 @@ function md_wordcloud_block_view($delta = '') {
   $blocks = array();
   if ($voc = taxonomy_vocabulary_load($delta)) {
     $blocks['subject'] = variable_get('md_wordcloud_block_title_' . $delta, t('Tags in @voc', array('@voc' => $voc->name)));
-    $blocks['content'] = '<div id="terms-cloud-' . $delta . '" class="cloud-block"><svg></svg><div><a href="' . $base_url . '/md-taxonomy/page/' . $voc->vid . '">More</a></div></div>';
+	###CUSTOMIZATION START###
+	//Use url and t function to get a localized link
+    $blocks['content'] = '<div id="terms-cloud-' . $delta . '" class="cloud-block"><svg></svg><div><a href="' . $base_url . url('md-taxonomy/page/' . $voc->vid) . '">' . t('More') . '</a></div></div>';
+    ###CUSTOMIZATION END###
   }
   ###CUSTOMIZATION START###
   //Set title and more link for selvoc block.
   else if($voc = $delta){
 	$blocks['subject'] = variable_get('md_wordcloud_block_title_' . $delta, t('Tags in @voc', array('@voc' => $delta)));
-    $blocks['content'] = '<div id="terms-cloud-' . $delta . '" class="cloud-block"><svg></svg><div><a href="' . $base_url . '/md-taxonomy/page/' . $delta . '">More</a></div></div>';
+	//Use url and t function to get a localized link
+    $blocks['content'] = '<div id="terms-cloud-' . $delta . '" class="cloud-block"><svg></svg><div><a href="' . $base_url . url('md-taxonomy/page/' . $delta) . '">' . t('More') . '</a></div></div>';
   }
   ###CUSTOMIZATION END###
   return $blocks;
@@ -443,14 +447,28 @@ function get_terms($vids, $size = NULL) {
     else {
       $results = db_query($string_query, $vids);
     }
-
+	global $language;
     foreach ($results as $tag) {
       $counts[] = $tag->num;
-      $words[] =  $tag->name;
+	  $term = taxonomy_term_load($tag->tid);
+	  ###CUSTOMIZATION START###
+	  //Use translated term name, if i18n_taxonomy module is installed.
+	  if(module_exists('i18n_taxonomy')){
+		$term_name = i18n_taxonomy_term_name($term, $language->language);
+		$words[] =  $term_name;
+	  }
+	  else{
+		$term_name = $tag->name;
+		$words[] =  $term_name;
+	  }
+	  ###CUSTOMIZATION END###
       $term_id = (object)array('tid' => $tag->tid);
       $org_url = taxonomy_term_uri($term_id);
-      $url_alias = drupal_get_path_alias($org_url['path']);
-      $terms_url[$tag->name] = $base_url . '/' . $url_alias;
+	  ###CUSTOMIZATION START###
+	  //Get localized link
+      $url_alias = url($org_url['path']);
+      $terms_url[$term_name] = $base_url . $url_alias;
+	  ###CUSTOMIZATION END###
     }
 
     $result = (object) array('terms_url' => $terms_url, 'words' => $words, 'counts' => $counts);
