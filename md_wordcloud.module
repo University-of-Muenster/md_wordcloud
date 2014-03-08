@@ -392,7 +392,7 @@ function md_wordcloud_page_list($vocs_id) {
   ###CUSTOMIZATION START###
   //Set different tile if it is the selvoc block.
   if($vocs_id[0] == 'selvoc'){
-	drupal_set_title(t('Word Cloud'));
+	drupal_set_title(t('Tag Cloud'));
   }
   else{
 	$term = taxonomy_vocabulary_load($vocs_id[0]);
